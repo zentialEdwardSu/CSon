@@ -92,7 +92,8 @@ SONDS* addSONDS(SONDS *base, SONDS *toadd){
     return base;
 }
 
-//include low, High ex: ABCDEFG [0,3] ABC
+//include low, High not included; index start from 0; 
+//>>> ex: ABCDEFG [0,3]->ABC
 SONDS divideSONDS(SONDS *todivide,int low,int high){
     if(low < 0){
         low = todivide->length+low;
@@ -115,7 +116,7 @@ SONDS divideSONDS(SONDS *todivide,int low,int high){
     return newSONDS(tmpdata);
 }
 
-SONDS* spiltSONDAS(SONDS *tospilt,char signal){
+SONDS* spiltSONDS(SONDS *tospilt,char signal){
     int spiltpos = 0;
     while(spiltpos<tospilt->length)
     {
@@ -136,4 +137,45 @@ SONDS* spiltSONDAS(SONDS *tospilt,char signal){
     // resDivided+=(1+sizeof(SONDS)+preDivide.length);
     // *resDivided = sufDivide;
     return resDivided;
+}
+
+void Next(SONDS *T,int *next){
+    int i=1;
+    next[1]=0;
+    int j=0;
+    while (i< T->length) {
+        if (j==0||T->data[i-1]==T->data[j-1]) {
+            i++;
+            j++;
+            if (T->data[i-1]!=T->data[j-1]) {
+               next[i]=j;
+            }
+            else{
+                next[i]=next[j];
+            }
+        }else{
+            j=next[j];
+        }
+    }
+}
+
+int kmpSONDS(SONDS *S,SONDS *T){
+    int *next = (int *)malloc(T->length*sizeof(int));
+    Next(T,next);//根据模式串T,初始化next数组
+    int i=1;
+    int j=1;
+    while (i<=S->length&&j<=T->length)
+    {
+        //j==0:代表模式串的第一个字符就和指针i指向的字符不相等；S[i-1]==T[j-1],如果对应位置字符相等，两种情况下，指向当前测试的两个指针下标i和j都向后移
+        if (j==0 || S->data[i-1]==T->data[j-1]) {
+            i++;
+            j++;
+        }else{
+            j=next[j];//两个字符不相等，i不动，j变为当前测试字符串的next值
+        }
+    }
+    if (j>T->length) {//如果条件为真，说明匹配成功
+        return i - T->length-1;
+    }
+    return -1;
 }
