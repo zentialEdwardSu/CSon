@@ -30,6 +30,7 @@ void consoleLog(SONDS *s){
     printf("Length:%d;\r\nFree:%d;\n",s->length,s->free);
     printf("Data:%s\n",s->data);
 }
+
 int printfSONDS(SONDS *string){
     int printfSize = printf("%s\n",string->data);
     return printfSize;
@@ -64,6 +65,7 @@ SONDS* addChar(SONDS *base, char *toadd){
     }
     return base;
 }
+
 SONDS* addSONDS(SONDS *base, SONDS *toadd){
     // int addLen = strlen(toadd);
     int diff = base->free - toadd->length;
@@ -89,6 +91,7 @@ SONDS* addSONDS(SONDS *base, SONDS *toadd){
     }
     return base;
 }
+
 //include low, High ex: ABCDEFG [0,3] ABC
 SONDS divideSONDS(SONDS *todivide,int low,int high){
     if(low < 0){
