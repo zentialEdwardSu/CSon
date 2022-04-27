@@ -1,10 +1,18 @@
-#include<stdio.h>
-#include<string.h>
-#include<stdlib.h>
+#ifndef __SONDS_H
+
+#define __SONDS_H
+
 #include<assert.h>
 #include<math.h>
 
+#endif
 
+#ifndef __BASE__
+#define __BASE__
+#include<stdio.h>
+#include<string.h>
+#include<stdlib.h>
+#endif
 #define sDS standardizeSONDS
 typedef struct SONDS{
     int length;
@@ -26,7 +34,19 @@ SONDS newSONDS(char *string){
     return newOne;
 }
 
-void consoleLog(SONDS *s){
+// New SONDS with no extra place for just division
+SONDS newSONDS_nomore(char *string){
+    SONDS newOne;
+    newOne.length = strlen(string);
+    newOne.free = 0;
+    newOne.data = (char *)malloc(newOne.length+1);
+    memcpy(newOne.data,string,newOne.length);
+    newOne.data[newOne.length] = '\0';
+
+    return newOne;
+}
+
+void consoleLogSONDS(SONDS *s){
     printf("Length:%d;\r\nFree:%d;\n",s->length,s->free);
     printf("Data:%s\n",s->data);
 }
@@ -40,7 +60,7 @@ char *standardizeSONDS(SONDS *s){
     return s->data;
 }
 
-SONDS* addChar(SONDS *base, char *toadd){
+SONDS* addCharSONDS(SONDS *base, char *toadd){
     int addLen = strlen(toadd);
     int diff = base->free - addLen;
     char *tmpdata;
