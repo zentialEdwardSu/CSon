@@ -163,6 +163,8 @@ List *List_divide_List(List *L,int low,int high){
     return res;
 }
 
+//TODO:List_insert
+
 void *List_loadInt(int *data){
     int *tmp=data;
     return (void *)tmp;
