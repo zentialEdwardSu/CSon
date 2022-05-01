@@ -1,19 +1,16 @@
-#ifndef __SONDS_H
-
 #define __SONDS_H
 
-#include<assert.h>
-#include<math.h>
-
-#endif
-
-#ifndef __BASE__
-#define __BASE__
 #include<stdio.h>
 #include<string.h>
 #include<stdlib.h>
-#endif
+#include<assert.h>
+#include<math.h>
+#include<stdbool.h>
+
 #define sDS standardizeSONDS
+
+/*LastEdit 1:05 2022-5-1*/
+
 typedef struct SONDS{
     int length;
     int free;
@@ -21,6 +18,11 @@ typedef struct SONDS{
 }SONDS;
 
 typedef SONDS Str;
+
+/*Give whole size of Str s*/
+size_t sizeofSONDS(SONDS *s){
+    return s->length+s->free+1+sizeof(SONDS);
+}
 
 SONDS newSONDS(char *string){
     SONDS newOne;
@@ -152,10 +154,6 @@ SONDS* spiltSONDS(SONDS *tospilt,char signal){
     SONDS *resDivided = (SONDS *)malloc(2*sizeof(SONDS));
     resDivided[0] = preDivide;
     resDivided[1] = sufDivide;
-    // SONDS *resDivided = (SONDS *)malloc(preDivide.length+sufDivide.length+2+sizeof(SONDS)*2);
-    // *resDivided = preDivide;
-    // resDivided+=(1+sizeof(SONDS)+preDivide.length);
-    // *resDivided = sufDivide;
     return resDivided;
 }
 
