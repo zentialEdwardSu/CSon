@@ -1,4 +1,3 @@
-#define __SONDS_H
 
 #include<stdio.h>
 #include<string.h>
@@ -6,6 +5,9 @@
 #include<assert.h>
 #include<math.h>
 #include<stdbool.h>
+
+#ifndef __SONDS_H
+#define __SONDS_H
 
 #define sDS standardizeSONDS
 
@@ -197,3 +199,5 @@ int kmpSONDS(SONDS *S,SONDS *T){
     }
     return -1;
 }
+
+#endif
