@@ -1,3 +1,10 @@
-# CSon
+# Cson
 
-Json loader based on C ,hand made with love & full-filled interest
+Json loader based on C , different from cJson util, it is much complex and function less.
+
+XD
+
+### Dependence
+
+- List  list container
+- SONDS string container & operator
