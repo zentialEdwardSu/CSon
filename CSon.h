@@ -1,80 +1,53 @@
+/**
+ * @file CSon.h
+ * @author EdwardSu 
+ * @brief Json decoder and Compiler base on C
+ * @version 0.0.1
+ * @date 2022-05-18
+ * 
+ * @copyright Copyright (c) 2022
+ * 
+ */
 #ifndef __CSON_H
 #define __CSON_H
 
+#ifndef __SONDS_H
 #include"SONDS.h"
-
 #endif
 
-#ifndef __BASE__
-#define __BASE__
-#include<stdio.h>
-#include<string.h>
-#include<stdlib.h>
+#ifndef __LIST_H
+#include"List.h"
 #endif
 typedef enum{
     base = 0,
+    INT,
+    DOUBLE,
     STRING,
-    ARR,
+    LIST,
     OBJ
 }TYPE;
 
 typedef struct Jobj{
-    SONDS name;//Jobj的关键字(Key)
-    TYPE type;//标注该Jobj的类型
-    struct Jobj *pre;//指向同级前一个关键字的指针
-    struct Jobj *next;//指向同级后一个关键字的指针
-    void *Hook;//Jobj的值(Value),void指针类的数据挂载点,用于挂载子数据
+    SONDS name;//Key for the Jobj obj
+    TYPE type;//Mark the type of this Jobj
+    struct Jobj *pre;//Point to the previous Jobj for same level
+    struct Jobj *next;//Point to the next Jobj for same level
+    void *Hook;//Value of the Jobj, where the data while be mounted
 }Jobj;
 
-//Json对象的基底
-Jobj newJobj(){
-    Jobj json;
-    json.name = newSONDS_nomore("BASE");
-    json.type = base;
-    json.pre = NULL;
-    json.next = NULL;
-    json.Hook = NULL;
+Jobj Jobj_Jsontranslater(char *json_string);
+SONDS *Jobj_JsonCompiler(Jobj *jobj_base);
+Jobj Jobj_newJobj();
+Jobj *Jobj_initJobj();
+TYPE Jobj_judge_type(char *str);
+Jobj* Jobj_seekend(Jobj *obj);
 
-    return json;
-}
+Jobj *Jobj_appendOBJ(SONDS *obj_string);
+Jobj *Jobj_OBJaddKV(SONDS *s);
 
-//在hook添加新的 {} 形式结构
-Jobj *appendOBJ(Jobj *JobjtoaObj){
-    
+Jobj *Jobj_appendList(char *list_string);
+Jobj *Jobj_ListaddELE(Jobj *data_hook,Type_data add_type,void *data);
 
-}
-
-//在{}内添加新的键值对
-Jobj *OBJaddKV(){
-
-}
-
-//在hook里增加新的 [] 结构
-Jobj *appendList(){
-
-}
-
-//在[]的尾部添加新的元素
-Jobj *ListaddELE(){
-
-}
-
-//将Jobj形式的数据转换为SONDS结构的字符串
-SONDS JsonCompiler(){
-
-}
-
-//将字符串结构的数据转换成
-Jobj JsonDecoder(){
-
-}
-
-//使用 xpath 风格的路径在Jobj中访问对象
-Jobj *JobjGet(){
-
-}
-
-//使用SONDS形式的关键词在全局范围内查找特定值
-Jobj *JobjQuery(){
-
-}
+SONDS *renderList(List *list_content);
+SONDS *renderOBJ(Jobj *Hook_content);
+#endif
