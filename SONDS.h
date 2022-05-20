@@ -1,4 +1,4 @@
-
+/* encode: -*- GB2312 -*-*/
 #include<stdio.h>
 #include<string.h>
 #include<stdlib.h>
@@ -11,7 +11,8 @@
 
 #define sDS standardizeSONDS
 
-/*LastEdit 1:05 2022-5-1*/
+/*SONDS version for CSon*/
+/*date 05202022*/
 
 typedef struct SONDS{
     int length;
@@ -38,6 +39,17 @@ SONDS newSONDS(char *string){
     return newOne;
 }
 
+SONDS *newSONDS_P(char *string){
+    SONDS *newOne = (SONDS *)malloc(sizeof(SONDS));
+    newOne->length = strlen(string);
+    newOne->free = newOne->length*2;
+    newOne->data = (char *)malloc(newOne->free+1);
+    memcpy(newOne->data,string,newOne->length);
+    newOne->data[newOne->length] = '\0';
+    newOne->free=newOne->length;
+
+    return newOne;
+}
 // New SONDS with no extra place for just division
 SONDS newSONDS_nomore(char *string){
     SONDS newOne;
@@ -46,6 +58,18 @@ SONDS newSONDS_nomore(char *string){
     newOne.data = (char *)malloc(newOne.length+1);
     memcpy(newOne.data,string,newOne.length);
     newOne.data[newOne.length] = '\0';
+
+    return newOne;
+}
+
+SONDS *newSONDS_P_nomore(char *string){
+    SONDS *newOne = (SONDS *)malloc(sizeof(SONDS));
+    newOne->length = strlen(string);
+    newOne->free = 0;
+    newOne->data = (char *)malloc(newOne->free+1);
+    memcpy(newOne->data,string,newOne->length);
+    newOne->data[newOne->length] = '\0';
+    newOne->free=newOne->length;
 
     return newOne;
 }
@@ -159,6 +183,21 @@ SONDS* spiltSONDS(SONDS *tospilt,char signal){
     return resDivided;
 }
 
+int SONDS_checkSame(SONDS *s1, SONDS *s2){
+    if(!strcmp(s1->data,s2->data))
+        return 1;
+    return 0;
+}
+
+void freeSONDS(SONDS *s){
+    free(s->data);
+    free(s);
+}
+
+int nullSONDS(SONDS *s){
+    return s->length?1:0;
+}
+
 void Next(SONDS *T,int *next){
     int i=1;
     next[1]=0;
@@ -181,20 +220,24 @@ void Next(SONDS *T,int *next){
 
 int kmpSONDS(SONDS *S,SONDS *T){
     int *next = (int *)malloc(T->length*sizeof(int));
-    Next(T,next);//根据模式串T,初始化next数组
+    Next(T,next);//Init next Arr base on input 
     int i=1;
     int j=1;
     while (i<=S->length&&j<=T->length)
     {
-        //j==0:代表模式串的第一个字符就和指针i指向的字符不相等；S[i-1]==T[j-1],如果对应位置字符相等，两种情况下，指向当前测试的两个指针下标i和j都向后移
+        /*
+        j==0 stands for the first in model is diff from the char which pointed by i&&
+        S[i-1]==T[j-1],char equal in match place 
+        In these two situation i,j move backward*/
         if (j==0 || S->data[i-1]==T->data[j-1]) {
             i++;
             j++;
         }else{
-            j=next[j];//两个字符不相等，i不动，j变为当前测试字符串的next值
+            //do not match i stay j turn to be the value in next
+            j=next[j];
         }
     }
-    if (j>T->length) {//如果条件为真，说明匹配成功
+    if (j>T->length) {//True will match process done 
         return i - T->length-1;
     }
     return -1;

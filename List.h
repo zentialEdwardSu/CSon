@@ -7,21 +7,24 @@
 #include"SONDS.h"
 #endif
 
-
-/*LastEdit 1:52 2022-5-3*/
+/*List version for CSon*/
+/*LastEdit 19:46 2022-5-15*/
 #ifndef __LIST_H
 #define __LIST_H
 
 #define EX_RANGE 3
 #define double_size sizeof(double)
 #define int_size sizeof(int)
-#define str_size sizeof(Str)
+#define str_size sizeof(Str *)
+#define jobj_size sizeof(int *)
 typedef enum{
     type_NULL = 0,
     type_int,
     type_double,
     type_Str,
-    type_jobj
+    type_jobj,
+    type_list,
+    type_other
 }Type_data;
 
 typedef struct{
@@ -29,6 +32,7 @@ typedef struct{
     int currentLength;
     Type_data type;
     int type_size;
+    
     void *content_Hook;
 }List;
 
@@ -42,9 +46,11 @@ void *List_pop(List *L,int popos);
 void *List_divide_Arr(List *L,int low,int high);
 List *List_divide_List(List *L,int low,int high);
 void *List_insert(List *L,void *insertdata,int pos);
+void *List_getItem(List *L,int index);
 
 void List_consoleLog(List *L);
 bool List_isFull(List *L);
+void List_freelist(List *L);
 
 void *List_loadInt(int *data);
 void *List_loadDouble(double *data);
@@ -52,6 +58,7 @@ void *List_loadStr(SONDS *data);
 int *List_contentDumpInt(List *L);
 double *List_contentDumpDouble(List *L);
 Str *List_contentDumpStr(List *L);
+Type_data List_judge_type(char *s);
 
 List List_newList(int initSize,Type_data type){
     List newList;
@@ -61,7 +68,8 @@ List List_newList(int initSize,Type_data type){
     switch(type){
         case type_int:  newList.content_Hook = malloc(int_size*newList.length);   newList.type_size = int_size;   memset(newList.content_Hook,0,int_size*newList.length);break;
         case type_double:   newList.content_Hook = malloc(double_size*newList.length);   newList.type_size = double_size;   memset(newList.content_Hook,0,double_size*newList.length);   break;
-        case type_Str:  newList.content_Hook = malloc(str_size*newList.length);   newList.type_size = str_size;   memset(newList.content_Hook,0,double_size*newList.length);    break;
+        case type_Str:  newList.content_Hook = malloc(str_size*newList.length);   newList.type_size = str_size;   memset(newList.content_Hook,0,str_size*newList.length);    break;
+        case type_jobj: newList.content_Hook = malloc(jobj_size*newList.length);  newList.type_size = jobj_size; memset(newList.content_Hook,0,jobj_size*newList.length); break;
         default: printf("\n[ERROR] Undentified data Type\n"); newList.content_Hook = NULL;   newList.type_size = 0; break;
     }
     if(!newList.content_Hook){printf("[WARN] Get Space failed");}
@@ -78,11 +86,26 @@ List *List_initList(int initSize,Type_data type){
         case type_int:  newList->content_Hook = malloc(int_size*newList->length);   newList->type_size = int_size;   ;break;
         case type_double:   newList->content_Hook = malloc(double_size*newList->length);   newList->type_size = double_size;   break;
         case type_Str:  newList->content_Hook = malloc(str_size*newList->length);   newList->type_size = str_size;   break;
+        case type_jobj: newList->content_Hook = malloc(jobj_size*newList->length);  newList->type_size = jobj_size; memset(newList->content_Hook,0,jobj_size*newList->length); break;
         default: printf("\n[ERROR] Undentified data Type\n"); newList->content_Hook = NULL;   newList->type_size = 0; break;
     }
     if(!newList->content_Hook){printf("[WARN] Get Space failed");}
 
     return newList;
+}
+
+/* Use to build a given_siize list*/
+List *List_initList_size(int initSize,int data_size ){
+    List *newList=(List *)malloc(sizeof(List));
+    newList->length = initSize+EX_RANGE;
+    newList->currentLength = 0;
+    newList->type = type_other;
+    newList->type_size = data_size;
+    newList->content_Hook = malloc(int_size*newList->type_size);
+    if(!newList->content_Hook){printf("[WARN] Get Space failed");}
+
+    return newList;
+
 }
 
 void List_consoleLog(List *L){
@@ -127,7 +150,7 @@ void *List_pop(List *L,int popos){
         return NULL;
     }
     int moveNum = L->currentLength-popos-1;
-    char *contentCursor = L->content_Hook;
+    char *contentCursor = (char *)L->content_Hook;
     contentCursor += popos*L->type_size;
     void *res = malloc(L->type_size);
     memcpy(res,contentCursor,L->type_size);
@@ -136,6 +159,22 @@ void *List_pop(List *L,int popos){
     memmove(contentCursor,contentCursor+L->type_size,moveNum*L->type_size);
 
     return res;
+}
+
+void *List_getItem(List *L,int index){
+    if(index > L->currentLength){
+        printf("[WARN] index out of range\n");
+        return NULL;
+    }
+
+    char *tmp_cursor = (char *)L->content_Hook;
+    tmp_cursor += index*L->type_size;
+
+    void *res_data = malloc(L->type_size);
+
+    memcpy(res_data,tmp_cursor,L->type_size);
+
+    return res_data;
 }
 
 /*Get silce by low,high 
@@ -156,7 +195,7 @@ void *List_divide_Arr(List *L,int low,int high){
     int range = high-low+1;
     void *res = malloc(L->type_size*range);
 
-    char *contentCursor = L->content_Hook;
+    char *contentCursor = (char *)L->content_Hook;
     contentCursor+=(low)*L->type_size;
 
     // printf("res pos:%ld\n",(long long)res);
@@ -188,7 +227,7 @@ List *List_divide_List(List *L,int low,int high){
 
     List *res = List_initList(range,L->type);
 
-    char *contentCursor = L->content_Hook;
+    char *contentCursor = (char *)L->content_Hook;
     contentCursor+=(low)*L->type_size;
 
     memcpy(res->content_Hook,contentCursor,range*L->type_size);
@@ -210,7 +249,7 @@ void *List_insert(List *L,void *insertdata,int pos){
         printf("[MSG] Space full malloc new space\n");    
     }
     int moveNum = L->currentLength - pos;
-    char *moveCursor = L->content_Hook;
+    char *moveCursor = (char *)L->content_Hook;
     moveCursor+= pos*L->type_size;//move to back 1 of insert pos
     memmove(moveCursor+L->type_size,moveCursor,moveNum*L->type_size);
 
@@ -221,7 +260,28 @@ void *List_insert(List *L,void *insertdata,int pos){
     return L;
 
 }
+void List_freelist(List *L){
+    free(L->content_Hook);
+    free(L);
+}
 
+Type_data List_judge_type(char *s){
+    switch (*s)
+    {
+        case '"':return type_Str;break;
+        case '[':return type_list;break;
+        case '{':return type_jobj;break;
+    }
+
+    while (s)
+    {
+        if(*s=='.') return type_double;
+        s++;
+    }
+
+    return type_int;
+    
+}
 void *List_loadInt(int *data){
     int *tmp=data;
     return (void *)tmp;
