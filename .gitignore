@@ -1,6 +1,9 @@
-/.vscode
+.vscode
 *.exe
 cJSON.*
 *.png
 *.json
 test.c
+.idea
+/cmake-build-debug/
+/build/
