@@ -11,13 +11,9 @@
 #ifndef __CSON_H
 #define __CSON_H
 
-#ifndef __SONDS_H
 #include"SONDS.h"
-#endif
 
-#ifndef __LIST_H
 #include"List.h"
-#endif
 typedef enum{
     base = 0,
     INT,
@@ -45,9 +41,12 @@ Jobj* Jobj_seekend(Jobj *obj);
 Jobj *Jobj_appendOBJ(SONDS *obj_string);
 Jobj *Jobj_OBJaddKV(SONDS *s);
 
-Jobj *Jobj_appendList(char *list_string);
+List *Jobj_appendList(char *list_string);
 Jobj *Jobj_ListaddELE(Jobj *data_hook,Type_data add_type,void *data);
 
 SONDS *renderList(List *list_content);
 SONDS *renderOBJ(Jobj *Hook_content);
+
+Jobj *Jobj_Getby_Key(Jobj *obj,SONDS key);
+Jobj *Jobj_Getby_Path(Jobj *obj,SONDS *path);
 #endif

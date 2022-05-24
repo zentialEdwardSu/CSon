@@ -1,5 +1,5 @@
 /**
- * @file Cson.c
+ * @file CSon.h
  * @author EdwardSu 
  * @brief Json decoder and Compiler base on C
  * @version 0.0.1
@@ -11,7 +11,49 @@
 #include<stdio.h>
 #include<string.h>
 #include<stdlib.h>
-#include"Cson.h"
+
+#ifndef __CSON_H
+#define __CSON_H
+
+#include"SONDS.h"
+
+#include"List.h"
+typedef enum{
+    base = 0,
+    INT,
+    DOUBLE,
+    STRING,
+    LIST,
+    OBJ
+}TYPE;
+
+typedef struct Jobj{
+    SONDS name;//Key for the Jobj obj
+    TYPE type;//Mark the type of this Jobj
+    struct Jobj *pre;//Point to the previous Jobj for same level
+    struct Jobj *next;//Point to the next Jobj for same level
+    void *Hook;//Value of the Jobj, where the data while be mounted
+}Jobj;
+
+Jobj *Jobj_Json_translater(char *json_string);
+SONDS *Jobj_Json_Compiler(Jobj *jobj_base);
+Jobj Jobj_newJobj();
+Jobj *Jobj_initJobj();
+TYPE Jobj_judge_type(char *str);
+Jobj* Jobj_seekend(Jobj *obj);
+
+Jobj *Jobj_appendOBJ(SONDS *obj_string);
+Jobj *Jobj_OBJaddKV(SONDS *s);
+
+List *Jobj_appendList(char *list_string);
+Jobj *Jobj_ListaddELE(Jobj *data_hook,Type_data add_type,void *data);
+
+SONDS *renderList(List *list_content);
+SONDS *renderOBJ(Jobj *Hook_content,int no_head);
+
+Jobj *Jobj_Getby_Key(Jobj *obj,SONDS key);
+Jobj *Jobj_Getby_Path(Jobj *obj,SONDS *path);
+
 /* Utility to jump whitespace and cr/lf */
 static const char *skip(const char *in) {while (in && *in && (unsigned char)*in<=32) in++; return in;}
 
@@ -63,16 +105,18 @@ Jobj *Jobj_initJobj(){
  * @return Jobj* - struct in json A:{}
  */
 Jobj *Jobj_appendOBJ(SONDS *obj_string){
-    SONDS *tmp = spiltSONDS(obj_string,':');
-    if(nullSONDS(&tmp[1])){
-        printf("[ERROR] Null value for obj %s\n",tmp[0].data);
+    SONDS *tmp_e = spiltSONDS(obj_string,':');
+    if(nullSONDS(&tmp_e[1])){
+        printf("[ERROR] Null value for obj %s\n",tmp_e[0].data);
         return NULL;
     }
 
     Jobj *Json_object = Jobj_initJobj();
     Json_object->type = OBJ;
+    Json_object->name = newSONDS_nomore("");
 
-    Json_object->Hook = Jobj_OBJaddKV(&tmp[1]);
+
+    Json_object->Hook = Jobj_OBJaddKV(obj_string);
 
     return Json_object;
 }
@@ -85,20 +129,20 @@ Jobj *Jobj_appendOBJ(SONDS *obj_string){
  * @return Jobj* 
  */
 Jobj *Jobj_OBJaddKV(SONDS *s){
-    Jobj *res;
-    if(*s->data!='{'){
-        printf("[WARN] Invaild format of input");
-        return NULL;
-    }
-    SONDS *tmp_s,*tmp_e,tmp;
-    tmp = divideSONDS(s,1,-2);/*remove { and }*/
+    Jobj *res = NULL;
+//    if(s->data[0]!='{'){
+//        printf("[WARN] Invaild format of input");
+//        return NULL;
+//    }
+    SONDS *tmp_s=NULL,*tmp_e=NULL,tmp;
+    tmp = divideSONDS(s,1,-1);/*remove { and }*/
     Jobj *lastJobj=NULL,*newJobj=NULL;
     int flag = 0;
     while(true){
         lastJobj = newJobj;
 
-        tmp_s = spiltSONDS(&tmp,',');/*get a slice obj from all*/ 
-        if(nullSONDS(s)) break;
+        tmp_s = spiltSONDS_keepStruct(&tmp,',');/*get a slice obj from all*/
+        if(nullSONDS(tmp_s)) break;
         tmp = tmp_s[1];
         tmp_e = spiltSONDS(&tmp_s[0],':');/*get name and value8*/
 
@@ -108,14 +152,16 @@ Jobj *Jobj_OBJaddKV(SONDS *s){
         if(newJobj->pre) newJobj->pre->next = newJobj;
 
         newJobj->type = Jobj_judge_type(standardizeSONDS(&tmp_e[1]));
-
+        SONDS *tmp_value = &tmp_e[1];
         switch(newJobj->type){
-            INT:DOUBLE:STRING: newJobj->Hook = (void *)(&tmp_e[1]); break;
-            LIST:
-                newJobj->Hook = Jobj_appendList(standardizeSONDS(&tmp_e[1]));
+            case INT:case DOUBLE:case STRING: newJobj->Hook = tmp_value; break;
+            case LIST:
+                newJobj->Hook = Jobj_appendList(standardizeSONDS(tmp_value));
                 break;
-            OBJ:
-                newJobj->Hook = (void *)Jobj_appendOBJ(&tmp_e[1]);
+            case OBJ:
+                newJobj->Hook = Jobj_appendOBJ(tmp_value);
+                break;
+            case base:
                 break;
         }
 
@@ -147,7 +193,7 @@ List *Jobj_appendList(char *list_string){
     }
     Str transfer_list = newSONDS_nomore(list_string);
     
-    transfer_list = divideSONDS(&transfer_list,1,-2);//clear [ and ]
+    transfer_list = divideSONDS(&transfer_list,1,-1);//clear [ and ]
     List * list = List_initList(EX_RANGE,type_Str);
     while(1)
     {
@@ -155,13 +201,14 @@ List *Jobj_appendList(char *list_string){
         transfer_list = temp[1];
         if(nullSONDS(&temp[0]))  break;
 
+        SONDS *tmp_value = &temp[0];
         switch(list->type){
-            case type_int:case type_double:case type_Str: List_append(list,(void *)(&temp[0])); break;
+            case type_int:case type_double:case type_Str: List_append(list,(&temp[0])); break;
             case type_list: 
-                List_append(list,(void *)Jobj_appendList(standardizeSONDS(&temp[0])));
+                List_append(list,Jobj_appendList(standardizeSONDS(&temp[0])));
                 break;
             case type_jobj:
-                List_append(list,(void *)Jobj_appendOBJ(&temp[0]));
+                List_append(list,Jobj_appendOBJ(&temp[0]));
                 break;
         }
     }
@@ -179,6 +226,7 @@ Jobj *Jobj_ListaddELE(Jobj *data_hook,Type_data add_type,void *data){
     }
 
     List_append(temp_list,data);
+    return data_hook;
 }
 
 /**
@@ -187,16 +235,18 @@ Jobj *Jobj_ListaddELE(Jobj *data_hook,Type_data add_type,void *data){
  * @param json_string 
  * @return Jobj
  */
-Jobj Jobj_Jsontranslater(char *json_string){
-    Jobj res = Jobj_newJobj();
+Jobj *Jobj_Json_translater(char *json_string){
+    printf("Receive : %s",json_string);
     if(*json_string!='{'){
-        printf("[Warn] invaild Imput string\n");
-        return res;
+        printf("[Warn] invalid input string\n");
+        return NULL;
     }
 
-    res.Hook = (void *)Jobj_appendOBJ(newSONDS_P_nomore(json_string));
+    Jobj *res = Jobj_appendOBJ(newSONDS_P_nomore(json_string));
+    res->name = newSONDS_nomore("BASE");
 
     return res;
+
 }
 
 /**
@@ -205,18 +255,18 @@ Jobj Jobj_Jsontranslater(char *json_string){
  * @param jobj_base pointer to the BASE of the Jobj 
  * @return SONDS* 
  */
-SONDS *Jobj_JsonCompiler(Jobj *jobj_base){
-    if(jobj_base->type!=base){
-        printf("[WARN] Invaild Jobj type,except 0 get %d\n",jobj_base->type);
-        return NULL;
-    }
+SONDS *Jobj_Json_Compiler(Jobj *jobj_base){
+//    if(jobj_base->type!=base){
+//        printf("[WARN] Invaild Jobj type,except 0 get %d\n",jobj_base->type);
+//        return NULL;
+//    }
 
-    SONDS *res = newSONDS_P("{");
-    Jobj *cursor = jobj_base->Hook;
+    SONDS *res = newSONDS_P("");
+    Jobj *cursor = (Jobj *)jobj_base->Hook;
 
-    addSONDS(res,renderOBJ(cursor->Hook));
+    addSONDS(res,renderOBJ(cursor,0));
 
-    addCharSONDS(res,"}");
+//    addCharSONDS(res,"}");
 
     return res;
 }
@@ -227,28 +277,33 @@ SONDS *Jobj_JsonCompiler(Jobj *jobj_base){
  * @param Hook_content 
  * @return *SONDS 
  */
-SONDS *renderOBJ(Jobj *Hook_content){
+SONDS *renderOBJ(Jobj *Hook_content,int no_head){
     SONDS *res = newSONDS_P("{");
     Jobj *cursor = Hook_content;
-    while(cursor->next)
+    if(cursor->type==OBJ)
+        cursor = (Jobj *)cursor->Hook;
+    while(cursor)
     {
-        addSONDS(res,&cursor->name);
-        addCharSONDS(res,":");
+        if(!no_head){
+            addSONDS(res,&cursor->name);
+            addCharSONDS(res,":");
+        }
         switch(cursor->type){
-            case INT:DOUBLE:STRING:
+            case INT:case DOUBLE:case STRING:
                 addSONDS(res,(SONDS *)cursor->Hook);
                 break;
             case OBJ:
-                addSONDS(res,renderOBJ(cursor->Hook));
+                addSONDS(res,renderOBJ((Jobj *)cursor->Hook,0));
                 break;
             case LIST:
                 addSONDS(res,renderList((List *)cursor->Hook));
                 break;
         }
-        cursor = cursor->next;
 
-        if(cursor->next)
+        if(cursor->next) {
             addCharSONDS(res,",");
+        }
+        cursor = cursor->next;
     }
 
     addCharSONDS(res,"}");
@@ -269,15 +324,15 @@ SONDS *renderList(List *list_content){
     for(;diff = list_content->currentLength - index;index++)
     {
         switch(list_content->type){
-            case type_int:type_double:type_Str:
+            case type_int:case type_double:case type_Str:
                 addSONDS(res,(SONDS *)List_getItem(list_content,index));
                 break;
-            case type_list:
-                addSONDS(res,renderList(List_getItem(list_content,index)));
-                break;
             case type_jobj:
-                addSONDS(res,renderOBJ(List_getItem(list_content,index)));
+                addSONDS(res,renderOBJ((Jobj *)(List_getItem(list_content,index)),0));
                 break;               
+            case type_list:
+                addSONDS(res,renderList((List *)List_getItem(list_content,index)));
+                break;
         }
         if(diff >1)
             addCharSONDS(res,",");
@@ -373,7 +428,7 @@ TYPE Jobj_judge_type(char *str){
         case '{':return OBJ;break;
     }
 
-    while(str)
+    while(*str!='\0')
     {
         if (*str=='.')  return DOUBLE;
         str++;
@@ -395,3 +450,5 @@ Jobj* Jobj_seekend(Jobj *obj){
     }
     return obj;
 }
+
+#endif

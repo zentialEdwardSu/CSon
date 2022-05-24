@@ -12,8 +12,7 @@
 #define sDS standardizeSONDS
 
 /*SONDS version for CSon*/
-/*date 05202022*/
-
+/*date: 05232022*/
 typedef struct SONDS{
     int length;
     int free;
@@ -32,6 +31,7 @@ SONDS newSONDS(char *string){
     newOne.length = strlen(string);
     newOne.free = newOne.length*2;
     newOne.data = (char *)malloc(newOne.free+1);
+    memset(newOne.data,0,newOne.free);
     memcpy(newOne.data,string,newOne.length);
     newOne.data[newOne.length] = '\0';
     newOne.free=newOne.length;
@@ -44,6 +44,7 @@ SONDS *newSONDS_P(char *string){
     newOne->length = strlen(string);
     newOne->free = newOne->length*2;
     newOne->data = (char *)malloc(newOne->free+1);
+    memset(newOne->data,0,newOne->free);
     memcpy(newOne->data,string,newOne->length);
     newOne->data[newOne->length] = '\0';
     newOne->free=newOne->length;
@@ -56,6 +57,7 @@ SONDS newSONDS_nomore(char *string){
     newOne.length = strlen(string);
     newOne.free = 0;
     newOne.data = (char *)malloc(newOne.length+1);
+    memset(newOne.data,0,newOne.free);
     memcpy(newOne.data,string,newOne.length);
     newOne.data[newOne.length] = '\0';
 
@@ -67,6 +69,7 @@ SONDS *newSONDS_P_nomore(char *string){
     newOne->length = strlen(string);
     newOne->free = 0;
     newOne->data = (char *)malloc(newOne->free+1);
+    memset(newOne->data,0,newOne->free);
     memcpy(newOne->data,string,newOne->length);
     newOne->data[newOne->length] = '\0';
     newOne->free=newOne->length;
@@ -105,7 +108,7 @@ SONDS* addCharSONDS(SONDS *base, char *toadd){
         free(tmpftmp);
         base->data = tmpdata;
     }else{
-        char *tmpftmp = tmpdata+base->length;
+        char *tmpftmp = base->data+base->length;
         memcpy(tmpftmp,toadd,addLen);
         tmpftmp[addLen+1] = '\0';
         base->free = diff;
@@ -117,9 +120,11 @@ SONDS* addCharSONDS(SONDS *base, char *toadd){
 SONDS* addSONDS(SONDS *base, SONDS *toadd){
     // int addLen = strlen(toadd);
     int diff = base->free - toadd->length;
-    char *tmpdata;
+    char *tmpdata = NULL;
     if(diff<0){
-        tmpdata = (char *)malloc((base->length+toadd->length+1)*2);
+        int malloc_size = (base->length+toadd->length)*2+1;
+        tmpdata = (char *)malloc(malloc_size);
+        memset(tmpdata,0,malloc_size);
         memcpy(tmpdata,base->data,base->length);
         char *tmpftmp = tmpdata+base->length;
         memcpy(tmpftmp,toadd->data,toadd->length);
@@ -128,14 +133,14 @@ SONDS* addSONDS(SONDS *base, SONDS *toadd){
         base->free = base->length;
 
         tmpftmp = base->data;
-        free(tmpftmp);
+//        free(tmpftmp)
         base->data = tmpdata;
     }else{
-        char *tmpftmp = tmpdata+base->length;
-        memcpy(tmpftmp,toadd,toadd->length);
-        tmpftmp[toadd->length+1] = '\0';
+        char *tmpftmp = base->data+base->length;
+        memcpy(tmpftmp,toadd->data,toadd->length);
         base->free = diff;
         base->length += toadd->length;
+        tmpftmp[toadd->length+1] = '\0';
     }
     return base;
 }
@@ -143,6 +148,7 @@ SONDS* addSONDS(SONDS *base, SONDS *toadd){
 //include low, High not included; index start from 0; 
 //>>> ex: ABCDEFG [0,3]->ABC
 SONDS divideSONDS(SONDS *todivide,int low,int high){
+    char *tmp_data = NULL;
     if(low < 0){
         low = todivide->length+low;
     }
@@ -158,10 +164,10 @@ SONDS divideSONDS(SONDS *todivide,int low,int high){
     }
     int size = high-low;
     char *tmp = todivide->data+low;
-    char *tmpdata = (char *)malloc(size+1);
-    memcpy(tmpdata,tmp,size);
-    tmpdata[size] = '\0';
-    return newSONDS(tmpdata);
+    tmp_data = (char *)malloc(size+1);
+    memcpy(tmp_data,tmp,size+1);
+    tmp_data[size] = '\0';
+    return newSONDS(tmp_data);
 }
 
 SONDS* spiltSONDS(SONDS *tospilt,char signal){
@@ -169,6 +175,45 @@ SONDS* spiltSONDS(SONDS *tospilt,char signal){
     while(spiltpos<tospilt->length)
     {
         if(tospilt->data[spiltpos]==signal){
+            break;
+        }
+        spiltpos++;
+    }
+    // printf("spilt:%d\n",spiltpos);
+    SONDS preDivide = divideSONDS(tospilt,0,spiltpos);
+    // printf("size prediff : %d\n",sizeof(preDivide));
+    SONDS sufDivide = divideSONDS(tospilt,spiltpos+1,tospilt->length);
+    SONDS *resDivided = (SONDS *)malloc(2*sizeof(SONDS));
+    resDivided[0] = preDivide;
+    resDivided[1] = sufDivide;
+    return resDivided;
+}
+
+/**
+ * @brief keep special struct while during spilt process
+ * @note example
+ * @code
+ *      "A:[1,2],B:3"
+ *      get [A:[1,2],B:3]
+ * @endcode
+ * @param tospilt SONDS to be spilled
+ * @param signal
+ * @return SONDS * arr [before signal, after signal]
+ */
+SONDS* spiltSONDS_keepStruct(SONDS *tospilt,char signal){
+    int spiltpos = 0;
+    int struct_flag = 0;
+    while(spiltpos<tospilt->length)
+    {
+        switch(tospilt->data[spiltpos]){
+            case '[':case '{':case '(':
+                struct_flag = 1;
+                break;
+            case ']':case '}':case ')':
+                struct_flag = 0;
+                break;
+        }
+        if(tospilt->data[spiltpos]==signal && !struct_flag){
             break;
         }
         spiltpos++;
@@ -195,7 +240,7 @@ void freeSONDS(SONDS *s){
 }
 
 int nullSONDS(SONDS *s){
-    return s->length?1:0;
+    return s->length?0:1;
 }
 
 void Next(SONDS *T,int *next){

@@ -3,12 +3,10 @@
 #include<stdlib.h>
 #include<stdbool.h>
 
-#ifndef __SONDS_H
 #include"SONDS.h"
-#endif
 
 /*List version for CSon*/
-/*LastEdit 19:46 2022-5-15*/
+/*DATE 05242022*/
 #ifndef __LIST_H
 #define __LIST_H
 
@@ -24,6 +22,7 @@ typedef enum{
     type_Str,
     type_jobj,
     type_list,
+    type_ptr,
     type_other
 }Type_data;
 
@@ -70,6 +69,7 @@ List List_newList(int initSize,Type_data type){
         case type_double:   newList.content_Hook = malloc(double_size*newList.length);   newList.type_size = double_size;   memset(newList.content_Hook,0,double_size*newList.length);   break;
         case type_Str:  newList.content_Hook = malloc(str_size*newList.length);   newList.type_size = str_size;   memset(newList.content_Hook,0,str_size*newList.length);    break;
         case type_jobj: newList.content_Hook = malloc(jobj_size*newList.length);  newList.type_size = jobj_size; memset(newList.content_Hook,0,jobj_size*newList.length); break;
+        case type_ptr: newList.content_Hook = malloc(jobj_size*newList.length);  newList.type_size = jobj_size; memset(newList.content_Hook,0,jobj_size*newList.length); break;
         default: printf("\n[ERROR] Undentified data Type\n"); newList.content_Hook = NULL;   newList.type_size = 0; break;
     }
     if(!newList.content_Hook){printf("[WARN] Get Space failed");}
@@ -87,6 +87,7 @@ List *List_initList(int initSize,Type_data type){
         case type_double:   newList->content_Hook = malloc(double_size*newList->length);   newList->type_size = double_size;   break;
         case type_Str:  newList->content_Hook = malloc(str_size*newList->length);   newList->type_size = str_size;   break;
         case type_jobj: newList->content_Hook = malloc(jobj_size*newList->length);  newList->type_size = jobj_size; memset(newList->content_Hook,0,jobj_size*newList->length); break;
+        case type_ptr: newList->content_Hook = malloc(jobj_size*newList->length);  newList->type_size = jobj_size; memset(newList->content_Hook,0,jobj_size*newList->length); break;
         default: printf("\n[ERROR] Undentified data Type\n"); newList->content_Hook = NULL;   newList->type_size = 0; break;
     }
     if(!newList->content_Hook){printf("[WARN] Get Space failed");}
@@ -132,22 +133,49 @@ void List_append(List *L,void *appendData){
     if(!appendData){    printf("[ERROR] NULL appendData ptr");  return;     }
     if(List_isFull(L)){     L->content_Hook = realloc(L->content_Hook,L->type_size*(L->length+EX_RANGE));   L->length+=EX_RANGE;    }
 
-    unsigned long long posHook = (long long)L->content_Hook;
+    // unsigned long long posHook = (long long)L->content_Hook;
 
+    if(L->type!=type_int&&L->type!=type_double){
+        void **pos_hook = L->content_Hook;
+        L->currentLength++;
+        pos_hook[L->currentLength-1] = appendData;
+        void *list_value = pos_hook[L->currentLength-1];
+
+        return;
+    }
+    char *pos_hook = L->content_Hook;
+    pos_hook += L->currentLength*L->type_size;
     // printf("Hook pos:%ld\n",posHook);
     // printf("Append pos:%ld\n",posHook+(L->currentLength*L->type_size));
     // printf("Append data pos:%ld\n",(long long)appendData);
-    memcpy((void *)(posHook+(L->currentLength*L->type_size)),appendData,L->type_size);
+    memcpy(pos_hook,appendData,L->type_size);
     L->currentLength++;
+    return;
 }
 
-/*Pop List[popos] and move forward
-    retrun>>poped out data*/
+/**
+ * @brief Pop List[popos] and move forward
+ * @param L
+ * @param popos pop index
+ * @return poped element
+ */
 void *List_pop(List *L,int popos){
     if(popos<0){    popos = L->currentLength+popos;     }
     if(popos>L->currentLength-1){
-        printf("[WARN] Invaild pop position\n");
+        printf("[WARN] Invalid pop position\n");
         return NULL;
+    }
+    if(L->type!=type_int&&L->type!=type_double){
+        void **pos_hook = L->content_Hook;
+        void *res = pos_hook[popos];
+        int Max_index = L->currentLength-1;
+        /**
+         * @bug It is so idiot to move element like this ,fix it later!
+         */
+        for(int i=popos;i<Max_index-1;i++){
+            pos_hook[i] = pos_hook[i+1];
+        }
+        return res;
     }
     int moveNum = L->currentLength-popos-1;
     char *contentCursor = (char *)L->content_Hook;
@@ -166,6 +194,12 @@ void *List_getItem(List *L,int index){
         printf("[WARN] index out of range\n");
         return NULL;
     }
+    if(L->type!=type_int&&L->type!=type_double){
+        void **pos_hook = L->content_Hook;
+        void *list_value = pos_hook[index];
+
+        return list_value;
+    }
 
     char *tmp_cursor = (char *)L->content_Hook;
     tmp_cursor += index*L->type_size;
@@ -173,6 +207,8 @@ void *List_getItem(List *L,int index){
     void *res_data = malloc(L->type_size);
 
     memcpy(res_data,tmp_cursor,L->type_size);
+
+    // res_data = *(char *)res_data;
 
     return res_data;
 }
